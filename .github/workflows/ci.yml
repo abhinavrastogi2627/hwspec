@@ -230,6 +230,25 @@ jobs:
       - name: Which CI jobs each kind of change selects
         run: scripts/changed-areas_test.sh
 
+  # verify.yml's checks still catch tampering, on local copies of the
+  # current edge release's assets (scripts/verify-release_test.sh).
+  verify-release:
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tampered copies of edge fail verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: scripts/verify-release_test.sh edge "$REPO"
+
   # Every Mermaid diagram in the Markdown must render (docs rule).
   mermaid:
     needs: changes
@@ -247,7 +266,7 @@ jobs:
   # a failure there would skip everything and pass vacuously.
   ci-ok:
     if: always()
-    needs: [changes, lint, test, vulncheck, build, distros, vms, nix, actionlint, mermaid, pr-title, commits]
+    needs: [changes, lint, test, vulncheck, build, distros, vms, nix, actionlint, verify-release, mermaid, pr-title, commits]
     runs-on: ubuntu-24.04
     steps:
       - name: All needed checks passed

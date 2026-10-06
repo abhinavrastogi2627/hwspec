@@ -22,7 +22,7 @@ match() { grep -Eq "$1" <<<"$files"; }
 go=false; nix=false; workflows=false; docs=false; vm=false
 match '(\.go$|^go\.(mod|sum|work|work\.sum)$|^vendor/|^(cmd|internal|tools)/|^\.golangci\.ya?ml$|^Makefile$|^scripts/coverage\.sh$)' && go=true
 match '^flake\.(nix|lock)$' && nix=true
-match '^(\.github/(workflows|actions)/|\.github/actionlint\.ya?ml$|scripts/(changed-areas(_test)?|check-commits|check-mermaid)\.sh$)' && workflows=true
+match '^(\.github/(workflows|actions)/|\.github/actionlint\.ya?ml$|scripts/(changed-areas(_test)?|check-commits|check-mermaid|verify-release(_test)?)\.sh$)' && workflows=true
 match '\.md$' && docs=true
 match '^(scripts/vm-(run|check)\.sh|\.github/workflows/vms\.yml)$' && vm=true
 

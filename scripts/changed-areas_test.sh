@@ -29,6 +29,8 @@ flake.nix|false true false false false
 .github/actionlint.yaml|true true true true true
 scripts/changed-areas.sh|true true true true true
 scripts/changed-areas_test.sh|true true true true true
+scripts/verify-release.sh|true true true true true
+scripts/verify-release_test.sh|true true true true true
 scripts/vm-run.sh|false false false false true
 scripts/vm-check.sh|false false false false true
 .github/workflows/vms.yml|true true true true true

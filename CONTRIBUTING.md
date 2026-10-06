@@ -193,4 +193,13 @@ The VMs boot under UEFI (q35, OVMF). `scripts/vm-run.sh` passes the binary to th
 To run one locally: `scripts/vm-run.sh debian-13-sysvinit ./hwspec` (needs `/dev/kvm`, QEMU, OVMF and genisoimage; logs and captures go to `vm-out/`). The images are pinned by URL and checksum in `scripts/vm-run.sh`; refresh them there, on purpose.
 
 - `verify.yml` runs after publishing, so it **detects** a bad release rather than preventing it. A failure means: fix it, then delete or supersede that release.
+- The checksum and attestation checks live in `scripts/verify-release.sh`. `scripts/verify-release_test.sh TAG REPO` proves they catch tampering, on local copies of a real release's assets. Nothing published changes. It runs in `verify.yml` after every publish, and in CI (against `edge`) when the scripts or CI change:
+
+  | Case | Must fail at |
+  |---|---|
+  | untouched assets | nothing: they pass |
+  | a tarball changed | checksums |
+  | a tarball changed and `SHA256SUMS` rewritten to match | attestation |
+  | a tarball added, or one missing from `SHA256SUMS` | checksums |
+  | attested at another commit, or by the other workflow (`edge.yml` vs `release.yml`) | attestation |
 - `edge` is deleted and recreated on every publish. Turning on GitHub's immutable releases would break that, so the edge flow has to change before that setting does.
