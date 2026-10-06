@@ -165,13 +165,32 @@ flowchart LR
   ci["CI green on a push to main"] --> edge["edge.yml (edge environment): build, attest"] --> pre["rolling 'edge' pre-release"]
   tag[release.yml] --> rel[Release]
   pre --> verify
-  rel --> verify["verify.yml: SHA256SUMS, attestations,<br/>binaries on 6 distros × amd64/arm64"]
+  rel --> verify["verify.yml: SHA256SUMS, attestations"]
+  verify --> ctr["containers: 6 distros × amd64/arm64"]
+  verify --> vms["vms.yml: KVM VMs (amd64)<br/>systemd, OpenRC, sysvinit"]
 ```
 
 | Workflow | Does |
 |---|---|
 | `edge.yml` | after CI passes on `main`: builds that commit, attests it, and replaces the `edge` pre-release (never Latest) |
-| `verify.yml` | after every publish: downloads the assets as a user would, checks `SHA256SUMS`, checks each tarball's attestation was signed by this repository's `release.yml` (or `edge.yml`) for that tag (or `main`) on a GitHub-hosted runner, then runs the published binary in the distro containers on amd64 and arm64 runners. Run it by hand from the Actions tab for any tag. |
+| `verify.yml` | after every publish: downloads the assets as a user would, checks `SHA256SUMS`, checks each tarball's attestation was signed by this repository's `release.yml` (or `edge.yml`) for that tag (or `main`) on a GitHub-hosted runner, then runs the published binary in the distro containers on amd64 and arm64 runners, and in the VMs. Run it by hand from the Actions tab for any tag. |
+| `vms.yml` | boots each pinned cloud image below under KVM and runs `scripts/vm-run.sh` on it. Also runs in CI, with the binary just built, when a PR changes the VM harness (`scripts/vm-*.sh`, `vms.yml`) or CI itself. |
+
+The VMs boot under UEFI (q35, OVMF). `scripts/vm-run.sh` passes the binary to the guest on the cloud-init seed disk, and `scripts/vm-check.sh` runs it there. Results come back on a second serial port, and the host checks them:
+
+| Image | Init (PID 1 is `os.init`) | How the check starts |
+|---|---|---|
+| Ubuntu 24.04, Ubuntu 26.04, Debian 13, Fedora 44, Arch | systemd (`systemd`) | cloud-init `runcmd` |
+| Alpine 3.24 | OpenRC under busybox init (`init`) | cloud-init `runcmd` |
+| Debian 13, switched to `sysvinit-core` | sysvinit (`init`) | boot 1: cloud-init swaps the init system and installs an init script; boot 2: that script runs the check |
+
+| Check | As |
+|---|---|
+| `hwspec version` matches the release | user (`tester`, created in the guest) |
+| `capture -f json`: schema 1, `virtualization` `vm`, `boot_mode` `uefi`, the image's `os.init`, memory, every PCI device named, not privileged | user |
+| `capture --full`: exits 0, `privileged` | root |
+
+To run one locally: `scripts/vm-run.sh debian-13-sysvinit ./hwspec` (needs `/dev/kvm`, QEMU, OVMF and genisoimage; logs and captures go to `vm-out/`). The images are pinned by URL and checksum in `scripts/vm-run.sh`; refresh them there, on purpose.
 
 - `verify.yml` runs after publishing, so it **detects** a bad release rather than preventing it. A failure means: fix it, then delete or supersede that release.
 - `edge` is deleted and recreated on every publish. Turning on GitHub's immutable releases would break that, so the edge flow has to change before that setting does.
